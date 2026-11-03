@@ -1,0 +1,41 @@
+<Window x:Class="UniSound.UI.ImporterWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="UniSound - Пошук та завантаження музики" Height="480" Width="650"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#12091A" Foreground="White">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Заголовок і Пошук -->
+            <RowDefinition Height="*"/>    <!-- Список результатів (Контейнер 3) -->
+            <RowDefinition Height="Auto"/> <!-- Прогрес завантаження та кнопки -->
+        </Grid.RowDefinitions>
+
+        <!-- 1. Заголовок і Пошуковий блок -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,15">
+            <TextBlock Text="Завантаження нової музики в Google Drive" FontSize="18" FontWeight="Bold" Foreground="#C084FC" Margin="0,0,0,10"/>
+            <DockPanel>
+                <Button x:Name="btnSearchOnline" Content="🔍 Шукати в мережі" DockPanel.Dock="Right" Width="140" Height="32" 
+                        Background="#9D4EDD" Foreground="White" FontWeight="Bold" BorderThickness="0" Click="btnSearchOnline_Click"/>
+                <TextBox x:Name="txtSearchQuery" Height="32" Padding="8,5" Margin="0,0,10,0"
+                         Background="#2A173B" Foreground="White" BorderThickness="1" BorderBrush="#3D2359" Text="Queen - Bohemian Rhapsody"/>
+            </DockPanel>
+        </StackPanel>
+
+        <!-- 2. Результати пошуку (ListBox — Контейнер №3) -->
+        <GroupBox Grid.Row="1" Header=" Знайдені аудіотреки " Foreground="#A08CB6" BorderBrush="#2D1A42" Margin="0,0,0,15">
+            <ListBox x:Name="lstSearchResults" Background="#1A0F26" Foreground="White" BorderThickness="0" Margin="5"
+                     DisplayMemberPath="DisplayText" SelectionChanged="lstSearchResults_SelectionChanged"/>
+        </GroupBox>
+
+        <!-- 3. Панель завантаження та статус -->
+        <StackPanel Grid.Row="2">
+            <ProgressBar x:Name="progressDownload" Height="10" Margin="0,0,0,10" Background="#2A173B" Foreground="#9D4EDD" Minimum="0" Maximum="100" Value="0"/>
+            <DockPanel>
+                <TextBlock x:Name="lblDownloadStatus" Text="Готово до пошуку" Foreground="#A08CB6" VerticalAlignment="Center"/>
+                <Button x:Name="btnDownloadToCloud" Content="☁️ Завантажити в Drive" DockPanel.Dock="Right" Width="180" Height="36" 
+                        Background="#9D4EDD" Foreground="White" FontWeight="Bold" BorderThickness="0" IsEnabled="False" Click="btnDownloadToCloud_Click"/>
+            </DockPanel>
+        </StackPanel>
+    </Grid>
+</Window>

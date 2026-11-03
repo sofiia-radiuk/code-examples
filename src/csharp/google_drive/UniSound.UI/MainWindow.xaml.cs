@@ -144,18 +144,33 @@ namespace UniSound.UI
 
         private void btnOpenImporter_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Вікно завантажувача з мережі (ImporterWindow) буде відкрито на наступному кроці.", "UniSound", MessageBoxButton.OK, MessageBoxImage.Information);
+            ImporterWindow importer = new ImporterWindow();
+            importer.Owner = this;
+            if (importer.ShowDialog() == true && importer.DownloadedTrack != null)
+            {
+                _allTracks.Add(importer.DownloadedTrack);
+                dgTracks.ItemsSource = null;
+                dgTracks.ItemsSource = _allTracks;
+                MessageBox.Show($"Новий трек '{importer.DownloadedTrack.Title}' додано до медіатеки!", "UniSound", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
-
         private void btnOpenTagEditor_Click(object sender, RoutedEventArgs e)
         {
             MessageBox.Show("Вікно редактора тегів (TagEditorWindow) буде відкрито на наступному кроці.", "UniSound", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        
         private void btnReauth_Click(object sender, RoutedEventArgs e)
         {
             AuthWindow auth = new AuthWindow();
-            auth.ShowDialog();
+            if (auth.ShowDialog() == true)
+            {
+            _driveService = auth.DriveService;
+            if (_driveService != null)
+            {
+                lblCurrentArtist.Text = "Підключено до Google Drive";
+            }
+    }
         }
     }
 }
