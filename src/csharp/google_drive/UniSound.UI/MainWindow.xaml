@@ -1,12 +1,111 @@
 ﻿<Window x:Class="UniSound.UI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:UniSound.UI"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="UniSound Cloud Music Player" Height="650" Width="1000"
+        WindowStartupLocation="CenterScreen" Background="#12091A" Foreground="White">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Верхня панель -->
+            <RowDefinition Height="*"/>    <!-- Основна область -->
+            <RowDefinition Height="90"/>   <!-- Нижній плеєр -->
+        </Grid.RowDefinitions>
 
+        <!-- 1. Верхня панель налаштувань та пошуку -->
+        <Border Grid.Row="0" Background="#1A0F26" Padding="15,10" BorderThickness="0,0,0,1" BorderBrush="#2D1A42">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                    <Button x:Name="btnOpenImporter" Content="🔍 Завантажити нову музику" Margin="5,0" Padding="10,5" Background="#2A173B" Foreground="White" BorderThickness="0" Click="btnOpenImporter_Click"/>
+                    <Button x:Name="btnOpenTagEditor" Content="✏️ Редактор тегів" Margin="5,0" Padding="10,5" Background="#2A173B" Foreground="White" BorderThickness="0" Click="btnOpenTagEditor_Click"/>
+                    <Button x:Name="btnReauth" Content="🔑 Акаунт" Margin="5,0" Padding="10,5" Background="#2A173B" Foreground="#C084FC" BorderThickness="0" FontWeight="SemiBold" Click="btnReauth_Click"/>
+                </StackPanel>
+                
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Пошук треку:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#A08CB6"/>
+                    <TextBox x:Name="txtSearch" Width="250" Height="28" Padding="5,2" Background="#2A173B" Foreground="White" BorderThickness="1" BorderBrush="#3D2359" TextChanged="txtSearch_TextChanged"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- 2. Центральна область: Sidebar з лівого боку + Таблиця з треками справа -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Ліва панель: Дерево плейлистів та категорій -->
+            <Border Grid.Column="0" Background="#1A0F26" Margin="0,0,2,0">
+                <DockPanel Margin="10">
+                    <TextBlock Text="Медіатека Google Drive" FontWeight="Bold" Foreground="#A08CB6" Margin="5,5,5,10" DockPanel.Dock="Top"/>
+                    <TreeView x:Name="tvPlaylists" Background="Transparent" Foreground="White" BorderThickness="0" SelectedItemChanged="tvPlaylists_SelectedItemChanged">
+                        <TreeViewItem Header="🎵 Вся музика" IsExpanded="True">
+                            <TreeViewItem Header="❤️ Улюблені треки"/>
+                            <TreeViewItem Header="🕒 Нещодавно додані"/>
+                        </TreeViewItem>
+                        <TreeViewItem Header="📁 Жанри" IsExpanded="True">
+                            <TreeViewItem Header="Rock"/>
+                            <TreeViewItem Header="Pop"/>
+                            <TreeViewItem Header="Electronic"/>
+                            <TreeViewItem Header="Hip-Hop"/>
+                        </TreeViewItem>
+                    </TreeView>
+                </DockPanel>
+            </Border>
+
+            <!-- Права панель: Таблиця файлів/треків -->
+            <Grid Grid.Column="1" Margin="2,0,0,0">
+                <DataGrid x:Name="dgTracks" AutoGenerateColumns="False" IsReadOnly="True" 
+                          Background="#12091A" RowBackground="#1A0F26" AlternatingRowBackground="#231433" 
+                          Foreground="White" GridLinesVisibility="None" BorderThickness="0"
+                          MouseDoubleClick="dgTracks_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="40"/>
+                        <DataGridTextColumn Header="Назва треку" Binding="{Binding Title}" Width="*"/>
+                        <DataGridTextColumn Header="Виконавець" Binding="{Binding Artist}" Width="180"/>
+                        <DataGridTextColumn Header="Альбом" Binding="{Binding Album}" Width="150"/>
+                        <DataGridTextColumn Header="Тривалість" Binding="{Binding Duration}" Width="80"/>
+                        <DataGridTextColumn Header="Розмір" Binding="{Binding SizeFormatted}" Width="90"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Grid>
+
+        <!-- 3. Нижній плеєрний бар -->
+        <Border Grid.Row="2" Background="#1A0F26" BorderThickness="0,1,0,0" BorderBrush="#2D1A42" Padding="15,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="200"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Поточний трек -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="lblCurrentTitle" Text="Оберіть трек для відтворення" FontWeight="Bold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="lblCurrentArtist" Text="UniSound Cloud" Foreground="#A08CB6" FontSize="11" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <!-- Кнопки керування та слайдер прогресу -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Width="450">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,5">
+                        <Button x:Name="btnPrev" Content="⏮" Width="36" Height="30" Margin="5,0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="14" Click="btnPrev_Click"/>
+                        <Button x:Name="btnPlayPause" Content="▶" Width="40" Height="34" Margin="5,0" Background="#9D4EDD" Foreground="White" BorderThickness="0" FontSize="16" FontWeight="Bold" Click="btnPlayPause_Click"/>
+                        <Button x:Name="btnNext" Content="⏭" Width="36" Height="30" Margin="5,0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="14" Click="btnNext_Click"/>
+                    </StackPanel>
+
+                    <DockPanel>
+                        <TextBlock x:Name="lblCurrentTime" Text="0:00" Foreground="#A08CB6" FontSize="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="lblTotalTime" Text="0:00" Foreground="#A08CB6" FontSize="10" Margin="8,0,0,0" DockPanel.Dock="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="sliderProgress" Minimum="0" Maximum="100" Value="0" VerticalAlignment="Center" ValueChanged="sliderProgress_ValueChanged"/>
+                    </DockPanel>
+                </StackPanel>
+
+                <!-- Гучність -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock Text="🔊" Foreground="#A08CB6" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <Slider x:Name="sliderVolume" Width="100" Minimum="0" Maximum="100" Value="80" VerticalAlignment="Center" ValueChanged="sliderVolume_ValueChanged"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
