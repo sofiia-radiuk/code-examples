@@ -1,0 +1,30 @@
+<Window x:Class="UniSound.UI.AuthWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="UniSound - Авторизація Google Drive" Height="340" Width="460"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="#121212" Foreground="White">
+    <Grid Margin="25">
+        <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="UniSound Cloud Hub" FontSize="22" FontWeight="Bold" Foreground="#1DB954" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+            <TextBlock Text="Вхід до особистого Google Drive для створення медіатеки" FontSize="11" Foreground="Gray" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+            
+            <TextBlock Text="User ID (Ідентифікатор користувача):" Margin="0,5,0,2" FontSize="12"/>
+            <TextBox x:Name="txtUserId" Height="28" Padding="5,2" Text="student_user" Background="#282828" Foreground="White" BorderThickness="0"/>
+
+            <TextBlock Text="OAuth Access Token:" Margin="0,10,0,2" FontSize="12"/>
+            <PasswordBox x:Name="txtToken" Height="28" Padding="5,2" Background="#282828" Foreground="White" BorderThickness="0"/>
+
+            <TextBlock Text="Сховище токенів:" Margin="0,10,0,2" FontSize="12"/>
+            <ComboBox x:Name="cmbStoreType" Height="28" SelectedIndex="0" Background="#282828" Foreground="Black">
+                <ComboBoxItem Content="In-Memory Store (Сесія в оперативній пам'яті)"/>
+                <ComboBoxItem Content="Local File Store (Зашифрований файл)"/>
+            </ComboBox>
+
+            <Button x:Name="btnLogin" Content="Підключити Google Drive" Height="36" Margin="0,20,0,0" 
+                    Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Click="btnLogin_Click"/>
+            
+            <TextBlock x:Name="lblStatus" Text="Статус: Очікування підключення" Foreground="Gray" Margin="0,12,0,0" HorizontalAlignment="Center" FontSize="11"/>
+        </StackPanel>
+    </Grid>
+</Window>
