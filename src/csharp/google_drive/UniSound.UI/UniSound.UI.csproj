@@ -4,6 +4,10 @@
     <ProjectReference Include="..\GoogleDriveClient\GoogleDriveClient.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="TagLibSharp" Version="2.3.0" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>

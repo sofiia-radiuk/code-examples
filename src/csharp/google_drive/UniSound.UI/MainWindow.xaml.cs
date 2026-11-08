@@ -1,64 +1,190 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Threading;
 using GoogleDriveClient;
 
 namespace UniSound.UI
 {
-    public class TrackModel
-    {
-        public int Index { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string Artist { get; set; } = string.Empty;
-        public string Album { get; set; } = string.Empty;
-        public string Duration { get; set; } = "3:30";
-        public long SizeBytes { get; set; }
-        public string SizeFormatted => $"{SizeBytes / (1024 * 1024)} MB";
-    }
+    
 
     public partial class MainWindow : Window
     {
         private GoogleDriveService? _driveService;
         private ObservableCollection<TrackModel> _allTracks = new();
+        
+        private readonly MediaPlayer _mediaPlayer = new MediaPlayer();
+        private readonly DispatcherTimer _timer = new DispatcherTimer();
         private bool _isPlaying = false;
 
         public MainWindow()
         {
             InitializeComponent();
-            LoadDemoData();
+            InitAudioPlayer();
+            LoadInitialData();
+
+            this.Closed += (s, e) => ClearAudioCache();
         }
 
-        private void LoadDemoData()
+        private void InitAudioPlayer()
         {
-            _allTracks = new ObservableCollection<TrackModel>
+            _timer.Interval = TimeSpan.FromMilliseconds(500);
+            _timer.Tick += Timer_Tick;
+
+            _mediaPlayer.MediaOpened += (s, e) =>
             {
-                new TrackModel { Index = 1, Title = "Bohemian Rhapsody", Artist = "Queen", Album = "A Night at the Opera", Duration = "5:55", SizeBytes = 14155776 },
-                new TrackModel { Index = 2, Title = "Shape of You", Artist = "Ed Sheeran", Album = "÷ (Divide)", Duration = "3:53", SizeBytes = 9332240 },
-                new TrackModel { Index = 3, Title = "Blinding Lights", Artist = "The Weeknd", Album = "After Hours", Duration = "3:20", SizeBytes = 8000000 },
-                new TrackModel { Index = 4, Title = "Hotel California", Artist = "Eagles", Album = "Hotel California", Duration = "6:30", SizeBytes = 15600000 },
-                new TrackModel { Index = 5, Title = "Smells Like Teen Spirit", Artist = "Nirvana", Album = "Nevermind", Duration = "5:01", SizeBytes = 12000000 }
+                if (_mediaPlayer.NaturalDuration.HasTimeSpan)
+                {
+                    sliderProgress.Maximum = _mediaPlayer.NaturalDuration.TimeSpan.TotalSeconds;
+                    lblTotalTime.Text = _mediaPlayer.NaturalDuration.TimeSpan.ToString(@"m\:ss");
+                }
             };
 
+            _mediaPlayer.MediaFailed += (s, e) =>
+            {
+                _isPlaying = false;
+                btnPlayPause.Content = "▶";
+                _timer.Stop();
+                MessageBox.Show("Не вдалося відтворити файл. Перевірте формат або завантажте трек знов.", 
+                                "UniSound Player", MessageBoxButton.OK, MessageBoxImage.Warning);
+            };
+
+            _mediaPlayer.MediaEnded += (s, e) =>
+            {
+                btnNext_Click(this, new RoutedEventArgs());
+            };
+        }
+
+        private void LoadInitialData()
+        {
+            // Порожня медіатека при запуску — нові треки додаються через Google Drive
+            _allTracks = new ObservableCollection<TrackModel>();
             dgTracks.ItemsSource = _allTracks;
+        }
+
+        private async void PlaySelectedTrack(TrackModel track)
+        {
+            try
+            {
+                lblCurrentTitle.Text = track.Title;
+                lblCurrentArtist.Text = track.Artist;
+                lblTotalTime.Text = track.Duration;
+
+                string audioPath = track.AudioUrl;
+
+                // 1. Відтворення завантаженого з Google Drive треку
+                if (track.IsCloudTrack)
+                {
+                    if (_driveService == null)
+                    {
+                        MessageBox.Show("Авторизуйтесь у Google Drive (кнопка 'Акаунт') для доступу до хмарних треків.", 
+                                        "UniSound Cloud", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    string tempFolder = Path.Combine(Path.GetTempPath(), "UniSoundCache");
+                    Directory.CreateDirectory(tempFolder);
+
+                    string cachedFilePath = Path.Combine(tempFolder, $"{track.AudioUrl}.mp3");
+
+                    if (!File.Exists(cachedFilePath))
+                    {
+                        lblCurrentArtist.Text = $"{track.Artist} (Зчитування з Google Drive...)";
+                        
+                        byte[] cloudData = await _driveService.DownloadTrackDataAsync(track.AudioUrl);
+                        await File.WriteAllBytesAsync(cachedFilePath, cloudData);
+                        
+                        lblCurrentArtist.Text = track.Artist;
+                    }
+
+                    audioPath = cachedFilePath;
+                }
+                // 2. Локальний файл з ПК
+                else if (string.IsNullOrEmpty(audioPath) || !File.Exists(audioPath))
+                {
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Filter = "Аудіофайли (*.mp3;*.wav)|*.mp3;*.wav|Усі файли (*.*)|*.*",
+                        Title = $"Вкажіть файл MP3 для '{track.Title}'"
+                    };
+
+                    if (dlg.ShowDialog() == true)
+                    {
+                        track.AudioUrl = dlg.FileName;
+                        audioPath = dlg.FileName;
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+
+                // 3. Запуск програвання
+                _mediaPlayer.Open(new Uri(audioPath, UriKind.Absolute));
+                _mediaPlayer.Volume = sliderVolume.Value / 100.0;
+                _mediaPlayer.Play();
+
+                _isPlaying = true;
+                btnPlayPause.Content = "⏸";
+                _timer.Start();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Помилка відтворення: {ex.Message}", "UniSound Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ClearAudioCache()
+        {
+            try
+            {
+                _mediaPlayer.Close();
+                string tempFolder = Path.Combine(Path.GetTempPath(), "UniSoundCache");
+                if (Directory.Exists(tempFolder))
+                {
+                    Directory.Delete(tempFolder, recursive: true);
+                }
+            }
+            catch
+            {
+                // Ігноруємо якщо заблоковано OS
+            }
         }
 
         private void btnPlayPause_Click(object sender, RoutedEventArgs e)
         {
-            _isPlaying = !_isPlaying;
-            btnPlayPause.Content = _isPlaying ? "⏸" : "▶";
-
-            if (dgTracks.SelectedItem is TrackModel selectedTrack)
+            if (_isPlaying)
             {
-                lblCurrentTitle.Text = selectedTrack.Title;
-                lblCurrentArtist.Text = selectedTrack.Artist;
+                _mediaPlayer.Pause();
+                _isPlaying = false;
+                btnPlayPause.Content = "▶";
+                _timer.Stop();
             }
-            else if (_allTracks.Count > 0)
+            else
             {
-                lblCurrentTitle.Text = _allTracks[0].Title;
-                lblCurrentArtist.Text = _allTracks[0].Artist;
+                if (dgTracks.SelectedItem is TrackModel selectedTrack)
+                {
+                    PlaySelectedTrack(selectedTrack);
+                }
+                else if (_allTracks.Count > 0)
+                {
+                    dgTracks.SelectedIndex = 0;
+                    PlaySelectedTrack(_allTracks[0]);
+                }
+            }
+        }
+
+        private void Timer_Tick(object? sender, EventArgs e)
+        {
+            if (_mediaPlayer.Source != null && _mediaPlayer.NaturalDuration.HasTimeSpan)
+            {
+                sliderProgress.Value = _mediaPlayer.Position.TotalSeconds;
+                lblCurrentTime.Text = _mediaPlayer.Position.ToString(@"m\:ss");
             }
         }
 
@@ -67,7 +193,10 @@ namespace UniSound.UI
             if (dgTracks.SelectedIndex < _allTracks.Count - 1)
             {
                 dgTracks.SelectedIndex++;
-                UpdateCurrentTrack();
+                if (dgTracks.SelectedItem is TrackModel track)
+                {
+                    PlaySelectedTrack(track);
+                }
             }
         }
 
@@ -76,16 +205,10 @@ namespace UniSound.UI
             if (dgTracks.SelectedIndex > 0)
             {
                 dgTracks.SelectedIndex--;
-                UpdateCurrentTrack();
-            }
-        }
-
-        private void UpdateCurrentTrack()
-        {
-            if (dgTracks.SelectedItem is TrackModel track)
-            {
-                lblCurrentTitle.Text = track.Title;
-                lblCurrentArtist.Text = track.Artist;
+                if (dgTracks.SelectedItem is TrackModel track)
+                {
+                    PlaySelectedTrack(track);
+                }
             }
         }
 
@@ -93,84 +216,152 @@ namespace UniSound.UI
         {
             if (dgTracks.SelectedItem is TrackModel track)
             {
-                _isPlaying = true;
-                btnPlayPause.Content = "⏸";
-                lblCurrentTitle.Text = track.Title;
-                lblCurrentArtist.Text = track.Artist;
+                PlaySelectedTrack(track);
             }
         }
 
-        private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            string query = txtSearch.Text.Trim().ToLower();
-            if (string.IsNullOrEmpty(query))
-            {
-                dgTracks.ItemsSource = _allTracks;
-            }
-            else
-            {
-                var filtered = _allTracks.Where(t => 
-                    t.Title.ToLower().Contains(query) || 
-                    t.Artist.ToLower().Contains(query) || 
-                    t.Album.ToLower().Contains(query)).ToList();
-                dgTracks.ItemsSource = filtered;
-            }
-        }
+        
 
-        private void tvPlaylists_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
-        {
-            if (tvPlaylists.SelectedItem is TreeViewItem item)
-            {
-                string header = item.Header.ToString() ?? "";
-                lblCurrentArtist.Text = $"Плейлист: {header}";
-            }
-        }
+
 
         private void sliderProgress_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            int seconds = (int)(sliderProgress.Value * 2.4); // Симуляція загальних 240 сек
-            int mins = seconds / 60;
-            int secs = seconds % 60;
-            if (lblCurrentTime != null)
+            if (_mediaPlayer.Source != null && Math.Abs(_mediaPlayer.Position.TotalSeconds - sliderProgress.Value) > 2.0)
             {
-                lblCurrentTime.Text = $"{mins}:{secs:D2}";
+                _mediaPlayer.Position = TimeSpan.FromSeconds(sliderProgress.Value);
             }
         }
 
         private void sliderVolume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            // Обробник зміни гучності
+            if (_mediaPlayer != null)
+            {
+                _mediaPlayer.Volume = sliderVolume.Value / 100.0;
+            }
         }
 
         private void btnOpenImporter_Click(object sender, RoutedEventArgs e)
         {
-            ImporterWindow importer = new ImporterWindow();
+            ImporterWindow importer = new ImporterWindow(_driveService);
             importer.Owner = this;
             if (importer.ShowDialog() == true && importer.DownloadedTrack != null)
             {
+                importer.DownloadedTrack.Index = _allTracks.Count + 1;
                 _allTracks.Add(importer.DownloadedTrack);
+                
                 dgTracks.ItemsSource = null;
                 dgTracks.ItemsSource = _allTracks;
-                MessageBox.Show($"Новий трек '{importer.DownloadedTrack.Title}' додано до медіатеки!", "UniSound", MessageBoxButton.OK, MessageBoxImage.Information);
+                
+                lblCurrentArtist.Text = $"Збережено в Google Drive: {importer.DownloadedTrack.Title}";
             }
         }
+
         private void btnOpenTagEditor_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Вікно редактора тегів (TagEditorWindow) буде відкрито на наступному кроці.", "UniSound", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (dgTracks.SelectedItem is TrackModel selectedTrack)
+            {
+                TagEditorWindow editor = new TagEditorWindow(selectedTrack);
+                editor.Owner = this;
+                if (editor.ShowDialog() == true)
+                {
+                    dgTracks.ItemsSource = null;
+                    dgTracks.ItemsSource = _allTracks;
+                }
+            }
+            else
+            {
+                MessageBox.Show("Оберіть трек у таблиці для редагування метаданих.", "Редактор", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
+            private void BtnLocalImport_Click(object sender, RoutedEventArgs e)
+{
+            var importWindow = new LocalImportWindow
+            {
+                Owner = this
+            };
 
-        
+            if (importWindow.ShowDialog() == true && importWindow.ImportedTrack != null)
+            {
+                var track = importWindow.ImportedTrack;
+
+                _allTracks.Add(track);
+
+                if (_driveService != null && File.Exists(importWindow.SelectedFilePath))
+                {
+                    byte[] fileBytes = File.ReadAllBytes(importWindow.SelectedFilePath);
+                    var driveDoc = new Document(Guid.NewGuid().ToString(), track.Title, Convert.ToBase64String(fileBytes));
+                    _driveService.UploadItem(driveDoc);
+                }
+
+                dgTracks.ItemsSource = null;
+                dgTracks.ItemsSource = _allTracks;
+
+                MessageBox.Show($"Трек '{track.Title}' успішно додано!", "Завантаження", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
         private void btnReauth_Click(object sender, RoutedEventArgs e)
         {
             AuthWindow auth = new AuthWindow();
             if (auth.ShowDialog() == true)
             {
-            _driveService = auth.DriveService;
-            if (_driveService != null)
-            {
+                _driveService = auth.DriveService;
                 lblCurrentArtist.Text = "Підключено до Google Drive";
             }
-    }
         }
+            private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ApplyFilters();
+        }
+        private void ApplyFilters()
+        {
+            if (_allTracks == null) return;
+
+            string searchText = txtSearch?.Text?.Trim().ToLower() ?? "";
+            string selectedCategory = (tvPlaylists?.SelectedItem as TreeViewItem)?.Header?.ToString() ?? "";
+
+            var filteredList = _allTracks.Where(track =>
+            {
+                // 1. Фільтр за пошуковим рядком (назва або виконавець)
+                bool matchesSearch = string.IsNullOrEmpty(searchText) ||
+                                    (!string.IsNullOrEmpty(track.Title) && track.Title.ToLower().Contains(searchText)) ||
+                                    (!string.IsNullOrEmpty(track.Artist) && track.Artist.ToLower().Contains(searchText));
+
+                // 2. Фільтр за категорією або жанром
+                bool matchesCategory = true;
+
+                if (!string.IsNullOrEmpty(selectedCategory))
+                {
+                    // Якщо обрано "Вся музика", "Улюблені треки" або "Нещодавно додані" — показуємо все
+                    if (selectedCategory.Contains("Вся музика") || 
+                        selectedCategory.Contains("Улюблені") || 
+                        selectedCategory.Contains("Нещодавно"))
+                    {
+                        matchesCategory = true;
+                    }
+                    else
+                    {
+                        // Очищаємо назву жанру від іконок
+                        string cleanGenre = selectedCategory.Replace("📁", "").Trim().ToLower();
+
+                        // Перевіряємо за полем Genre, назвою або виконавцем
+                        matchesCategory = (!string.IsNullOrEmpty(track.Genre) && track.Genre.ToLower().Contains(cleanGenre)) ||
+                                        (!string.IsNullOrEmpty(track.Title) && track.Title.ToLower().Contains(cleanGenre)) ||
+                                        (!string.IsNullOrEmpty(track.Artist) && track.Artist.ToLower().Contains(cleanGenre));
+                    }
+                }
+
+                return matchesSearch && matchesCategory;
+            }).ToList();
+
+            dgTracks.ItemsSource = null;
+            dgTracks.ItemsSource = filteredList;
+        }
+
+        private void TvPlaylists_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+        {
+            ApplyFilters();
+        }
+
+    
     }
 }

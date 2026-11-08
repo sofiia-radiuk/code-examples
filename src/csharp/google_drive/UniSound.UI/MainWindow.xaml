@@ -17,12 +17,22 @@
                     <Button x:Name="btnOpenImporter" Content="🔍 Завантажити нову музику" Margin="5,0" Padding="10,5" Background="#2A173B" Foreground="White" BorderThickness="0" Click="btnOpenImporter_Click"/>
                     <Button x:Name="btnOpenTagEditor" Content="✏️ Редактор тегів" Margin="5,0" Padding="10,5" Background="#2A173B" Foreground="White" BorderThickness="0" Click="btnOpenTagEditor_Click"/>
                     <Button x:Name="btnReauth" Content="🔑 Акаунт" Margin="5,0" Padding="10,5" Background="#2A173B" Foreground="#C084FC" BorderThickness="0" FontWeight="SemiBold" Click="btnReauth_Click"/>
+                    <Button x:Name="btnLocalImport" Content="📁 Завантажити з ПК" Width="150" Height="32" 
+                        Margin="5,0" Background="#6C5CE7" Foreground="White" FontWeight="Bold"
+                        Click="BtnLocalImport_Click"/>
                 </StackPanel>
                 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Пошук треку:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#A08CB6"/>
-                    <TextBox x:Name="txtSearch" Width="250" Height="28" Padding="5,2" Background="#2A173B" Foreground="White" BorderThickness="1" BorderBrush="#3D2359" TextChanged="txtSearch_TextChanged"/>
-                </StackPanel>
+                <TextBlock Text="Пошук треку:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#A08CB6"/>
+                <TextBox x:Name="txtSearch" 
+                        Width="250" 
+                        Height="28" 
+                        Padding="5,2" 
+                        Background="#2A173B" 
+                        Foreground="White" 
+                        BorderThickness="1" 
+                        TextChanged="TxtSearch_TextChanged"/>
+            </StackPanel>
             </DockPanel>
         </Border>
 
@@ -33,38 +43,80 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Ліва панель: Дерево плейлистів та категорій -->
-            <Border Grid.Column="0" Background="#1A0F26" Margin="0,0,2,0">
-                <DockPanel Margin="10">
-                    <TextBlock Text="Медіатека Google Drive" FontWeight="Bold" Foreground="#A08CB6" Margin="5,5,5,10" DockPanel.Dock="Top"/>
-                    <TreeView x:Name="tvPlaylists" Background="Transparent" Foreground="White" BorderThickness="0" SelectedItemChanged="tvPlaylists_SelectedItemChanged">
-                        <TreeViewItem Header="🎵 Вся музика" IsExpanded="True">
-                            <TreeViewItem Header="❤️ Улюблені треки"/>
-                            <TreeViewItem Header="🕒 Нещодавно додані"/>
-                        </TreeViewItem>
-                        <TreeViewItem Header="📁 Жанри" IsExpanded="True">
-                            <TreeViewItem Header="Rock"/>
-                            <TreeViewItem Header="Pop"/>
-                            <TreeViewItem Header="Electronic"/>
-                            <TreeViewItem Header="Hip-Hop"/>
-                        </TreeViewItem>
-                    </TreeView>
-                </DockPanel>
-            </Border>
+        <!-- Ліва панель: Дерево плейлистів та категорій -->
+        <Border Grid.Column="0" Background="#1A0F26" Margin="0,0,2,0">
+            <DockPanel Margin="10">
+                <TextBlock Text="Медіатека Google Drive" FontWeight="Bold" Foreground="#E0D7FF" Margin="5,5,5,10" DockPanel.Dock="Top"/>
+                <TreeView x:Name="tvPlaylists" 
+                    SelectedItemChanged="TvPlaylists_SelectedItemChanged" 
+                    Background="Transparent" BorderThickness="0">
+                    <!-- Стиль для того, щоб усі пункти дерева були світлими -->
+                    <TreeView.Resources>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="Foreground" Value="#E0D7FF"/>
+                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="Margin" Value="0,2"/>
+                        </Style>
+                    </TreeView.Resources>
+
+                    <TreeViewItem Header="🎵 Вся музика" IsExpanded="True">
+                        <TreeViewItem Header="❤️ Улюблені треки"/>
+                        <TreeViewItem Header="🕒 Нещодавно додані"/>
+                    </TreeViewItem>
+                    <TreeViewItem Header="📁 Жанри" IsExpanded="True">
+                        <TreeViewItem Header="Rock"/>
+                        <TreeViewItem Header="Pop"/>
+                        <TreeViewItem Header="Electronic"/>
+                        <TreeViewItem Header="Hip-Hop"/>
+                    </TreeViewItem>
+                </TreeView>
+            </DockPanel>
+        </Border>
 
             <!-- Права панель: Таблиця файлів/треків -->
             <Grid Grid.Column="1" Margin="2,0,0,0">
                 <DataGrid x:Name="dgTracks" AutoGenerateColumns="False" IsReadOnly="True" 
                           Background="#12091A" RowBackground="#1A0F26" AlternatingRowBackground="#231433" 
                           Foreground="White" GridLinesVisibility="None" BorderThickness="0"
+                          SelectionMode="Single" SelectionUnit="FullRow"
                           MouseDoubleClick="dgTracks_MouseDoubleClick">
+                    
+                    <!-- Перевизначення системних кольорів для виділення -->
+                    <DataGrid.Resources>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#3D2359"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#2A173B"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#FFFFFF"/>
+                    </DataGrid.Resources>
+
+                    <!-- Стиль заголовків колонок (не стають білими при сортуванні) -->
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#1A0F26"/>
+                            <Setter Property="Foreground" Value="#A08CB6"/>
+                            <Setter Property="Padding" Value="10,8"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                            <Setter Property="BorderBrush" Value="#2D1A42"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#2A173B"/>
+                                    <Setter Property="Foreground" Value="#C084FC"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#3D2359"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="40"/>
                         <DataGridTextColumn Header="Назва треку" Binding="{Binding Title}" Width="*"/>
                         <DataGridTextColumn Header="Виконавець" Binding="{Binding Artist}" Width="180"/>
                         <DataGridTextColumn Header="Альбом" Binding="{Binding Album}" Width="150"/>
                         <DataGridTextColumn Header="Тривалість" Binding="{Binding Duration}" Width="80"/>
-                        <DataGridTextColumn Header="Розмір" Binding="{Binding SizeFormatted}" Width="90"/>
+                        <DataGridTextColumn Header="Розмір" Binding="{Binding FileSize}" Width="100"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
